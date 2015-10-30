@@ -12,6 +12,7 @@
 		2.4程序化脚本： (shell scripts)
 	3.bash内建命令
 	4.bash操作环境
+	5.终端机的环境配置： stty, set
 ################################################################
 1.bash介绍
 	Bourne Again SHell (简称 bash)，	Linux 默认就是使用 bash 。
