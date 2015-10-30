@@ -1,0 +1,11 @@
+1.PS1：(提示字符的配置)
+原来：	root@www:~#  						PS1='${debian_chroot:+($debian_chroot)}\u@\h:\w\$ '
+配置后：root@www.yeqing.com 07:40 #6:~#		PS1='${debian_chroot:+($debian_chroot)}\u@\H \A #\#:\w\$ '
+											加上了时间和命令数
+配置过程：
+root@www:~# cp /etc/bash.bashrc /etc/bash.bashrc_backup
+root@www:~# vim /etc/bash.bashrc 
+改变PS1那一行
+root@www:~# source /etc/bash.bashrc
+root@www.yeqing.com 07:38 #5:~# 
+
