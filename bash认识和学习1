@@ -224,3 +224,10 @@ login shell 和 no-login shell 的区别
 /etc/man.config   或者  /etc/manpath.config(ubuntu 14.04)
  ~/.bash_history
 ~/.bash_logout	这个文件则记录了『当我注销 bash 后，系统再帮我做完什么动作后才离开』的意思。
+----------------------------------------
+yeqing@www:~$ ls -a .bash*
+.bash_history  .bash_logout  .bash_profile  .bashrc
+
+root@www:~# ls -a .bash*
+.bash_history  .bashrc
+
