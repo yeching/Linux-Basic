@@ -82,4 +82,7 @@ yeqing@www:~/YEQING$ ls -l MyAccountsInformation
 	yeqing@www.yeqing.com 10:20 #27:~/GitHub/Linux-Basic$ ls -l ~/YEQING/MyAccountsInformation
 	-rwx------ 1 yeqing yeqing 1271 10月 28 07:10 /home/yeqing/YEQING/MyAccountsInformation
 	yeqing@www.yeqing.com 10:20 #28:~/GitHub/Linux-Basic$ 
-
+-------------------------------------------------------------------------------------------------
+总结：
+1.Linux 用户身份与群组记录的文件：/etc/passwd /etc/shadow  /etc/group
+2.改变文件属性与权限： chgrp, chown, chmod
