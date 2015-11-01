@@ -1,0 +1,242 @@
+#################################################################################################
+参考：鸟哥的私房菜
+-------------------------------------------------------------------------------------------------
+目录：
+1. Linux 的账号与群组
+　　1.1 使用者标识符： UID 与 GID
+　　1.2 使用者账号：/etc/passwd 文件结构, /etc/shadow 文件结构
+　　1.3 关于群组： /etc/group 文件结构, 有效与初始群组, groups, newgrp, /etc/gshadow
+2. 账号管理
+　　2.1 新增与移除使用者： useradd, useradd 参考档, passwd, chage, usermod, userdel
+　　2.2 用户功能：finger, chfn, chsh, id
+　　2.3 新增与移除群组：groupadd, groupmod, groupdel, gpasswd 群组管理员
+　　2.4 账号管理实例
+4. 使用者身份切换
+　　4.1 su
+　　4.2 sudo： sudo 命令, visudo (/etc/sudoers) ( 账号, 群组, 限制命令, 别名, 时间间隔, 配合 su )
+6. Linux 主机上的用户信息传递
+　　6.1 查询使用者： w, who, last, lastlog
+　　6.2 使用者对谈： write, mesg, wall
+　　6.3 使用者邮件信箱： mail
+7. 手动新增使用者
+　　7.1 一些检查工具：pwck, pwconv, pwunconv, chpasswd
+　　7.2 特殊账号，如纯数字账号的手工创建
+　　7.3 大量建置账号模板(适用 passwd --stdin 选项)
+　　7.4 大量建置账号的范例(适用于连续数字，如学号)
+-------------------------------------------------------------------------------------------------
+1. Linux 的账号与群组
+　　1.1 使用者标识符： UID 与 GID
+	一个是使用者 ID (User ID ，简称 UID)、一个是群组 ID (Group ID ，简称 GID)。
+	系统会依据 /etc/passwd 与 /etc/group 的内容， 找到 UID / GID 对应的账号与组名再显示出来
+  1.2使用者账号：/etc/passwd 文件结构, /etc/shadow 文件结构
+-------------------------------------------------------------------------------------------------
+		/etc/passwd 文件结构
+			每一行都代表一个账号，有几行就代表有几个账号在你的系统中！ 不过需要特别留意的是，里头很多账号本来就是系统正常运行所必须要的，
+			我们可以简称他为系统账号， 例如 bin, daemon, adm, nobody 等等，这些账号请不要随意的杀掉他呢！
+		实例：
+			root@www:~# head -n 4 /etc/passwd
+			root:x:0:0:root:/root:/bin/bash
+			daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+			bin:x:2:2:bin:/bin:/usr/sbin/nologin
+			sys:x:3:3:sys:/dev:/usr/sbin/nologin
+	总共七个部分：
+		1.账号名称：
+			就是账号啦！用来对应 UID 的。例如 root 的 UID 对应就是 0 (第三字段)；
+		2.口令：
+			早期 Unix 系统的口令就是放在这字段上！但是因为这个文件的特性是所有的程序都能够读取，这样一来很容易造成口令数据被窃取， 
+			因此后来就将这个	字段的口令数据给他改放到 /etc/shadow 中了。所以这里你会看到一个『 x 』，呵呵！
+		3.UID：
+			这个就是使用者标识符啰！通常 Linux 对于 UID 有几个限制需要说给您了解一下：
+			当 UID 是 0 时，代表这个账号是『系统管理员』
+			1~499(系统账号)
+			500~65535(可登陆账号)
+		4.GID：
+			这个与 /etc/group 有关！其实 /etc/group 的观念与 /etc/passwd 差不多，只是他是用来规范组名与 GID 的对应而已！
+		5.用户信息说明栏：
+			这个字段基本上并没有什么重要用途，只是用来解释这个账号的意义而已！不过，如果您提供使用 finger 的功能时，
+			 这个字段可以提供很多的信息呢！本章后面的 chfn 命令会来解释这里的说明。
+		6.家目录： 
+			root 的家目录在 /root ，所以当 root 登陆之后，就会立刻跑到 /root 目录里头啦
+			可以在这个字段进行修改呦！默认的用户家目录在 /home/yourIDname
+		7.Shell：
+	-------------------------------------------------------------------------------------------------
+		/etc/shadow 文件结构
+			很多程序的运行都与权限有关，而权限与 UID/GID 有关！因此各程序当然需要读取 /etc/passwd 来了解不同账号的权限。
+			被有心人士所窃取的， 加密过的口令也能够透过暴力破解法去 try and error (试误) 找出来！
+			因为这样的关系，所以后来发展出将口令移动到 /etc/shadow 这个文件分隔开来的技术， 而且还加入很多的口令限制参数在 /etc/shadow 里头呢
+		实例：
+			root@www:~# head -n 4 /etc/shadow
+			root:!:16674:0:99999:7:::
+			daemon:*:16652:0:99999:7:::
+			bin:*:16652:0:99999:7:::
+			sys:*:16652:0:99999:7:::
+	总共九个部分：
+		1.账号名称：
+		由于口令也需要与账号对应啊～因此，这个文件的第一栏就是账号，必须要与 /etc/passwd 相同才行！
+		2.口令：
+		这个字段内的数据才是真正的口令，而且是经过编码的口令 (加密) 啦！ 你只会看到有一些特殊符号的字母就是了！
+		需要特别留意的是，虽然这些加密过的口令很难被解出来， 但是『很难』不等于『不会』，所以，这个文件的默认权限是
+		『-rw-------』或者是『-r--------』，亦即只有 root 才可以读写就是了！你得随时注意，不要不小心更动了这个文件的权限呢！
+		3.最近更动口令的日期：    
+		4.口令不可被更动的天数：(与第 3 字段相比)    
+		5.口令需要重新变更的天数：(与第 3 字段相比)
+		6.口令需要变更期限前的警告天数：(与第 5 字段相比)
+		7.口令过期后的账号宽限时间(口令失效日)：(与第 5 字段相比)
+		8.账号失效日期：
+		9.保留：
+			最后一个字段是保留的，看以后有没有新功能加入。
+
+-------------------------------------------------------------------------------------------------
+2. 账号管理
+-------------------------------------------------------------------------------------------------
+添加用户：useradd
+	root@www:~# useradd
+	用法：useradd [选项] 登录
+
+	root@www:~# useradd -D
+	GROUP=100
+	HOME=/home
+	INACTIVE=-1
+	EXPIRE=
+	SHELL=/bin/sh
+	SKEL=/etc/skel
+	CREATE_MAIL_SPOOL=no
+useradd 参考档：/etc/default/useradd 
+	1.HOME=/home：用户家目录的基准目录(basedir)
+	2.INACTIVE=-1：口令过期后是否会失效的配置值
+	3.EXPIRE=：账号失效的日期
+	4.SHELL=/bin/bash：默认使用的 shell 程序文件名
+	5.SKEL=/etc/skel：用户家目录参考基准目录
+		这个咚咚就是指定用户家目录的参考基准目录啰～举我们的范例一为例， vbird1 家目录 /home/vbird1 内的各项数据，都是由 /etc/skel 
+		所复制过去的～所以呢，未来如果我想要让新增使用者时，该用户的环境变量 ~/.bashrc 就配置妥当的话，您可以到 /etc/skel/.bashrc 
+		去编辑一下，也可以创建 /etc/skel/www 这个目录，那么未来新增使用者后，在他的家目录下就会有 www 那个目录了！这样瞭呼？
+	6.CREATE_MAIL_SPOOL=yes：创建使用者的 mailbox
+除了这些基本的账号配置值之外， UID/GID 还有口令参数又是在哪里参考的呢？那就得要看一下 /etc/login.defs 啦！ 这个文件的内容有点像底下这样：
+	MAIL_DIR        /var/spool/mail	<==用户默认邮件信箱放置目录
+	PASS_MAX_DAYS   99999	<==/etc/shadow 内的第 5 栏，多久需变更口令日数
+	PASS_MIN_DAYS   0	<==/etc/shadow 内的第 4 栏，多久不可重新配置口令日数
+	PASS_MIN_LEN    5	<==口令最短的字符长度，已被 pam 模块取代，失去效用！
+	PASS_WARN_AGE   7	<==/etc/shadow 内的第 6 栏，过期前会警告的日数
+	UID_MIN         500	<==使用者最小的 UID，意即小于 500 的 UID 为系统保留
+	UID_MAX       60000	<==使用者能够用的最大 UID
+	GID_MIN         500	<==使用者自定义组的最小 GID，小于 500 为系统保留
+	GID_MAX       60000	<==使用者自定义组的最大 GID
+	CREATE_HOME     yes	<==在不加 -M 及 -m 时，是否主动创建用户家目录？
+	UMASK           077     <==用户家目录创建的 umask ，因此权限会是 700
+	USERGROUPS_ENAB yes     <==使用 userdel 删除时，是否会删除初始群组
+	MD5_CRYPT_ENAB yes      <==口令是否经过 MD5 的加密机制处理
+
+现在你知道啦，使用 useradd 这支程序在创建 Linux 上的账号时，至少会参考：
+    /etc/default/useradd
+    /etc/login.defs
+    /etc/skel/*
+-------------------------------------------------------------------------------------------------
+删除账户：userdel
+	这个功能就太简单了，目的在删除用户的相关数据，而用户的数据有：
+    用户账号/口令相关参数：/etc/passwd, /etc/shadow
+    使用者群组相关参数：/etc/group, /etc/gshadow
+    用户个人文件数据： /home/username, /var/spool/mail/username..
+
+	root@www:~# userdel
+	用法：userdel [选项] 登录
+
+	选项：
+	  -f, --force                   即使不属于此用户，也强制删除文件
+	  -h, --help                    显示此帮助信息并推出
+	  -r, --remove                  删除主目录和邮件池
+	  -R, --root CHROOT_DIR         chroot 到的目录
+	  -Z, --selinux-user            为用户删除所有的 SELinux 用户映射
+
+
+-------------------------------------------------------------------------------------------------
+4. 使用者身份切换
+	su 和sudo 
+		以『 su - 』直接将身份变成 root 即可，但是这个命令却需要 root 的口令，也就是说，如果你要以 su 变成 root 的话，
+		你的一般使用者就必须要有 root 的口令才行；
+
+		以『 sudo 命令 』运行 root 的命令串，由于 sudo 需要事先配置妥当，且 sudo 需要输入用户自己的口令， 因此多人共管同一部主机时，
+		 sudo 要比 su 来的好喔！至少 root 口令不会流出去！
+-------------------------------------------------------------------------------------------------
+	visudo 与 /etc/sudoers
+		从上面的说明我们可以知道，除了 root 之外的其他账号，若想要使用 sudo 运行属于 root 的权限命令，则 root 需要先使用 visudo 
+		去修改 /etc/sudoers ，让该账号能够使用全部或部分的 root 命令功能。为什么要使用 visudo 呢？这是因为 /etc/sudoers 是有配置
+		语法的，如果配置错误那会造成无法使用 sudo 命令的不良后果。因此才会使用 visudo 去修改， 并在结束离开修改画面时，系统会去
+		检验 /etc/sudoers 的语法就是了。
+	实例：
+		yeqing@www:~$ sudo visudo
+		  2 # This file MUST be edited with the 'visudo' command as root.
+		  4 # Please consider adding local content in /etc/sudoers.d/ instead of
+		  5 # directly modifying this file.
+		  7 # See the man page for details on how to write a sudoers file.
+		  9 Defaults        env_reset
+		 10 Defaults        mail_badpass
+		 11 Defaults        secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+		 13 # Host alias specification
+		 15 # User alias specification
+		 17 # Cmnd alias specification
+		 19 # User privilege specification
+		 20 root    ALL=(ALL:ALL) ALL
+		 22 # Members of the admin group may gain root privileges
+		 23 %admin ALL=(ALL) ALL
+		 25 # Allow members of group sudo to execute any command
+		 26 %sudo   ALL=(ALL:ALL) ALL
+		 28 # See sudoers(5) for more information on "#include" directives:
+		 29 
+		 30 #includedir /etc/sudoers.d
+解释：
+	使用者账号  登陆者的来源主机名=(可切换的身份)  可下达的命令
+	root                         ALL=(ALL)           ALL   <==这是默认值
+
+	上面这一行的四个组件意义是：
+	   1. 系统的哪个账号可以使用 sudo 这个命令的意思，默认为 root 这个账号；
+	   2.当这个账号由哪部主机联机到本 Linux 主机，意思是这个账号可能是由哪一部网络主机联机过来的， 这个配置值可以指定客户端计算机(信任用户的意思)。
+		默认值 root 可来自任何一部网络主机
+	   3. 这个账号可以切换成什么身份来下达后续的命令，默认 root 可以切换成任何人；
+	   4.可用该身份下达什么命令？这个命令请务必使用绝对路径撰写。 默认 root 可以切换任何身份且进行任何命令之意。
+
+	%wheel     ALL=(ALL)    ALL  
+	# 在最左边加上 % ，代表后面接的是一个『群组』之意！改完请储存后离开
+-------------------------------------------------------------------------------------------------
+6. Linux 主机上的用户信息传递
+	如果你在 Linux 上面操作时，刚好有其他的用户也登陆主机，你想要跟他对谈，该如何是好？ 你想要知道某个账号的相关信息，该如何查阅
+-------------------------------------------------------------------------------------------------
+（1）查询使用者： w, who, last, lastlog
+	如果你想要知道目前已登陆在系统上面的用户呢？可以透过 w 或 who 来查询喔！如下范例所示：
+实例：
+		yeqing@www:~/tt/git$ w
+		 09:05:27 up  2:14,  3 users,  load average: 0.63, 0.49, 0.44
+		USER     TTY      FROM             LOGIN@   IDLE   JCPU   PCPU WHAT
+		yeqing   :0       :0               06:51   ?xdm?  43:08   0.16s init --user
+		yeqing   pts/1    :0               08:51    1.00s  0.04s  0.00s w
+		yeching  pts/11   192.168.1.45     09:05   10.00s  0.10s  0.09s -bash
+		yeqing@www:~/tt/git$ who
+		yeqing   :0           2015-11-01 06:51 (:0)
+		yeqing   pts/1        2015-11-01 08:51 (:0)
+		yeching  pts/11       2015-11-01 09:05 (192.168.1.45)
+	如果您想要知道每个账号的最近登陆的时间，则可以使用 lastlog 这个命令喔！ lastlog 会去读取 /var/log/lastlog 文件，结果将数据输出如下表：
+实例：	
+		yeqing@www:~/tt/git$ lastlog
+		用户名           端口     来自             最后登陆时间
+		root                                       **从未登录过**
+		daemon                                     **从未登录过**
+
+	-------------------------------------------------------------------------------------------------
+使用者对谈： write, mesg, wall
+write给某人写信息
+mesg 拒绝接受root以外的信息
+wall root发布广播
+
+-------------------------------------------------------------------------------------------------
+（2）使用者邮件信箱： mail
+-------------------------------------------------------------------------------------------------
+总结：
+配置文件
+使用者账号：/etc/passwd   /etc/shadow 
+关于群组： /etc/group  /etc/gshadow
+使用 useradd 这支程序在创建 Linux 上的账号时，至少会参考：
+    /etc/login.defs
+    /etc/skel/*
+	useradd 参考档：/etc/default/useradd 
+visudo 与 /etc/sudoers
+	/etc/sudoers.d
+lastlog 会去读取 /var/log/lastlog 文件
