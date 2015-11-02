@@ -1,0 +1,200 @@
+/*===============================================================================================================*/
+目录：
+	1.Shell echo命令
+	2.Shell test命令
+	3.Shell 流程控制 
+	4.Shell 函数
+/*===============================================================================================================*/
+*************   Shell echo命令	用于字符串的输出******************
+ 1.显示普通字符串:
+	echo "It is a test"
+	这里的双引号完全可以省略，以下命令与上面实例效果一致：
+	echo It is a test
+2.显示转义字符
+	echo "\"It is a test\""
+	结果将是:
+	"It is a test"
+	同样，双引号也可以省略
+3.显示变量
+	read 命令从标准输入中读取一行,并把输入行的每个字段的值指定给 shell 变量
+	  #!/bin/sh
+	  read name 
+	  echo "$name It is a test"
+	以上代码保存为 test.sh，name 接收标准输入的变量，结果将是:
+	[root@www ~]# sh test.sh
+	OK                     #标准输入
+	OK It is a test        #输出
+4.显示换行
+  echo -e "OK!\n" # -e 开启转义
+  echo "It it a test"
+	输出结果：
+	OK!
+	It it a test
+5.显示不换行
+	#!/bin/sh
+	echo -e "OK! \c" # -e 开启转义 \c 不换行
+	echo "It is a test"
+	输出结果：
+	OK! It is a test
+6.显示结果定向至文件
+  echo "It is a test" > myfile
+7.原样输出字符串，不进行转义或取变量(用单引号)
+	  echo '$name\"'
+		输出结果：
+	  $name\"
+
+8.显示命令执行结果
+	  echo `date`
+	结果将显示当前日期
+	  Thu Jul 24 10:08:46 CST 2014
+/*===============================================================================================================*/
+***************   Shell test命令   ******************
+Shell中的 test 命令用于检查某个条件是否成立，它可以进行数值、字符和文件三个方面的测试。
+数值测试
+参数 	说明
+-eq 	等于则为真
+-ne 	不等于则为真
+-gt 	大于则为真
+-ge 	大于等于则为真
+-lt 	小于则为真
+-le 	小于等于则为真
+
+字符串测试
+参数 	说明
+= 	等于则为真
+!= 	不相等则为真
+-z 字符串 	字符串长度伪则为真
+-n 字符串 	字符串长度不伪则为真
+
+文件测试
+参数 	说明
+-e 文件名 	如果文件存在则为真
+-r 文件名 	如果文件存在且可读则为真
+-w 文件名 	如果文件存在且可写则为真
+-x 文件名 	如果文件存在且可执行则为真
+-s 文件名 	如果文件存在且至少有一个字符则为真
+-d 文件名 	如果文件存在且为目录则为真
+-f 文件名 	如果文件存在且为普通文件则为真
+-c 文件名 	如果文件存在且为字符型特殊文件则为真
+-b 文件名 	如果文件存在且为块特殊文件则为真
+
+另外，Shell还提供了与( -a )、或( -o )、非( ! )三个逻辑操作符用于将测试条件连接起来，其优先级为："!"最高，"-a"次之，"-o"最低。例如：
+	cd /bin
+	if test -e ./notFile -o ./bash
+	then
+		echo 'One file exists at least!'
+	else
+		echo 'Both dose not exists!'
+	fi
+输出结果：
+One file exists at least!
+/*===============================================================================================================*/
+**********************   Shell 流程控制   *****************
+	if condition
+	then
+		command1 
+		command2
+		...
+		commandN
+	else
+		command
+	fi
+-------------------------------------------------------------------------------
+if condition1
+then
+    command1
+elif condition2
+    command2
+else
+    commandN
+fi
+-------------------------------------------------------------------------------
+for var in item1 item2 ... itemN
+do
+    command1
+    command2
+    ...
+    commandN
+done
+-------------------------------------------------------------------------------
+while condition
+do
+    command
+done
+-------------------------------------------------------------------------------
+until condition
+do
+    command
+done
+-------------------------------------------------------------------------------
+case 值 in
+模式1)
+    command1
+    command2
+    ...
+    commandN
+    ;;<---------------------------------
+模式2）
+    command1
+    command2
+    ...
+    commandN
+    ;;
+esac  #与case倒过来
+
+case工作方式如上所示。取值后面必须为单词in，每一模式必须以右括号结束。取值可以为变量或常数。匹配发现取值符合某一模式后，
+其间所有命令开始执行直至 ;;。 
+-------------------------------------------------------------------------------
+break continue
+/*===============================================================================================================*/
+*****************************   Shell 函数   ************************
+1、可以带function fun() 定义，也可以直接fun() 定义,不带任何参数。
+2、参数返回，可以显示加：return 返回，如果不加，将以最后一条命令运行结果，作为返回值。 return后跟数值n(0-255 ）
+*****************************
+ 下面的例子定义了一个函数并进行调用：
+
+	#!/bin/bash
+	demoFun(){
+		echo "This is your first shell function!"
+	}
+	echo "Function begin..."
+	demoFun
+	echo "Function end!
+
+	函数参数
+
+	在Shell中，调用函数时可以向其传递参数。在函数体内部，通过 $n 的形式来获取参数的值，例如，$1表示第一个参数，$2表示第二个参数...
+*****************************
+带参数的函数示例：
+
+	#!/bin/bash
+	funWithParam(){
+		echo "The value of the first parameter is $1 !"
+		echo "The value of the second parameter is $2 !"
+		echo "The value of the tenth parameter is $10 !"
+		echo "The value of the tenth parameter is ${10} !"
+		echo "The value of the eleventh parameter is ${11} !"
+		echo "The amount of the parameters is $# !"
+		echo "The string of the parameters is $* !"
+	}
+	funWithParam 1 2 3 4 5 6 7 8 9 34 73
+输出结果：
+
+	The value of the first parameter is 1 !
+	The value of the second parameter is 2 !
+	The value of the tenth parameter is 10 !
+	The value of the tenth parameter is 34 !
+	The value of the eleventh parameter is 73 !
+	The amount of the parameters is 12 !
+	The string of the parameters is 1 2 3 4 5 6 7 8 9 34 73 !"
+	 注意，$10 不能获取第十个参数，获取第十个参数需要${10}。当n>=10时，需要使用${n}来获取参数。
+
+另外，还有几个特殊字符用来处理参数：
+	参数处理 	说明
+	$# 	传递到脚本的参数个数
+	$* 	以一个单字符串显示所有向脚本传递的参数
+	$$ 	脚本运行的当前进程ID号
+	$! 	后台运行的最后一个进程的ID号
+	$@ 	与$*相同，但是使用时加引号，并在引号中返回每个参数。
+	$- 	显示Shell使用的当前选项，与set命令功能相同。
+	$? 	显示最后命令的退出状态。0表示没有错误，其他任何值表明有错误。
