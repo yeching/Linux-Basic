@@ -1,0 +1,267 @@
+/*=====================================================================================================*/ 
+参考：
+	1.鸟哥的linux的私房菜
+	2.浅析 Linux 初始化 init 系统			
+
+				三个主要的 Init 系统：sysvinit，UpStart 和 systemd
+目录：
+	一.什么是 Init 系统,init 系统的历史和现状
+	二 sysvinit
+		1.sysinit特点
+		2.sysinit启动过程
+		3.Sysvinit 和系统关闭
+		4.Sysvinit 的管理和控制功能
+/*=====================================================================================================*/ 
+
+/*******************************************************************************************************/ 
+一.什么是 Init 系统,init 系统的历史和现状
+/*******************************************************************************************************/ 
+1.Linux 操作系统的启动首先从 BIOS 开始，接下来进入 boot loader，由 bootloader 载入内核，进行内核初始化。
+内核初始化的最后一步就是启动 pid 为 1 的 init 进程。这个进程是系统的第一个进程。它负责产生其他所有用户
+进程。
+
+2.init 以守护进程方式存在，是所有其他进程的祖先。init 进程非常独特，能够完成其他进程无法完成的任务。
+
+3.Init 系统能够定义、管理和控制 init 进程的行为。它负责组织和运行许多独立的或相关的始化工作(因此被称为 init
+ 系统)，从而让计算机系统进入某种用户预订的运行模式。
+
+4.仅仅将内核运行起来是毫无实际用途的，必须由 init 系统将系统代入可操作状态。比如启动外壳 shell 后，便有了人机交
+互，这样就可以让计算机执行一些预订程序完成有实际意义的任务。或者启动 X 图形系统以便提供更佳的人机界面，更加高
+效的完成任务。这里，字符界面的 shell 或者 X 系统都是一种预设的运行模式。
+
+5.大多数 Linux 发行版的 init 系统是和 System V 相兼容的，被称为 sysvinit。这是人们最熟悉的 init 系统。一些发行
+版如 Slackware 采用的是 BSD 风格 Init 系统，这种风格使用较少，本文不再涉及。其他的发行版如 Gentoo 是自己定制的。
+Ubuntu 和 RHEL 采用 upstart 替代了传统的 sysvinit。而 Fedora 从版本 15 开始使用了一个被称为 systemd 的新 init 系统。
+
+6.在 Linux 主要应用于服务器和 PC 机的时代，SysVinit 运行非常良好，概念简单清晰。它主要依赖于 Shell 脚本，这就决定了它
+的最大弱点：启动太慢。在很少重新启动的 Server 上，这个缺点并不重要。而当 Linux 被应用到移动终端设备的时候，启动慢就
+成了一个大问题。为了更快地启动，人们开始改进 sysvinit，先后出现了 upstart 和 systemd 这两个主要的新一代 init 系统。
+Upstart 已经开发了 8 年多，在不少系统中已经替换 sysvinit。Systemd 出现较晚，但发展更快，大有取代 upstart 的趋势。
+/*******************************************************************************************************/ 
+二 sysvinit
+/*******************************************************************************************************/ 
+1.sysinit特点
+	各种服务依赖于 Shell 脚本，sysinit没有办法处理热插拔设备，所以开机时必须一次性把所有可能用到的服务都启动起来，即
+	使打印机并没有连接到系统，服务也必须启动。这个特性造成它不适应桌面系统，甚至嵌入式设备。
+
+
+2.sysinit启动过程
+（1）运行级别
+	每种 Linux 发行版对运行模式的定义都不太一样。但 0，1，6 却得到了大家的一致赞同：
+		0 关机
+		1 单用户模式
+		6 重启
+	 runlevel 3 和 5。runlevel 3 将系统初始化为字符界面的 shell 模式；runlevel 5 将系统初始化为 GUI 模式。
+（2）sysvinit 运行顺序
+Sysvinit 巧妙地用脚本，文件命名规则和软链接来实现不同的 runlevel。首先，sysvinit 需要读取/etc/inittab 文件。
+分析这个文件的内容，它获得以下一些配置信息：
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/ 
+   						 /etc/inittab 的内容与语法		来自鸟哥的linux私房菜
+
+		[root@www ~]# vim /etc/inittab
+		id:5:initdefault:                 <==默认的 runlevel 配置, 此 runlevel 为 5 
+
+		si::sysinit:/etc/rc.d/rc.sysinit  <==准备系统软件运行的环境的脚本运行档
+
+		# 7 个不同 run level 的，需要启动的服务的 scripts 放置路径：
+		l0:0:wait:/etc/rc.d/rc 0    <==runlevel 0 在 /etc/rc.d/rc0.d/
+		l1:1:wait:/etc/rc.d/rc 1    <==runlevel 1 在 /etc/rc.d/rc1.d/
+		l2:2:wait:/etc/rc.d/rc 2    <==runlevel 2 在 /etc/rc.d/rc2.d/
+		l3:3:wait:/etc/rc.d/rc 3    <==runlevel 3 在 /etc/rc.d/rc3.d/
+		l4:4:wait:/etc/rc.d/rc 4    <==runlevel 4 在 /etc/rc.d/rc4.d/
+		l5:5:wait:/etc/rc.d/rc 5    <==runlevel 5 在 /etc/rc.d/rc5.d/
+		l6:6:wait:/etc/rc.d/rc 6    <==runlevel 6 在 /etc/rc.d/rc6.d/
+
+		# 是否允许按下 [ctrl]+[alt]+[del] 就重新启动的配置项目：
+		ca::ctrlaltdel:/sbin/shutdown -t3 -r now
+
+		# 底下两个配置则是关於不断电系统的 (UPS)，一个是没电力时的关机，一个是复电的处理
+		pf::powerfail:/sbin/shutdown -f -h +2 "Power Failure; System Shutting Down"
+		pr:12345:powerokwait:/sbin/shutdown -c "Power Restored; Shutdown Cancelled"
+
+		1:2345:respawn:/sbin/mingetty tty1  <==其实 tty1~tty6 是由底下这六行决定的。
+		2:2345:respawn:/sbin/mingetty tty2
+		3:2345:respawn:/sbin/mingetty tty3
+		4:2345:respawn:/sbin/mingetty tty4
+		5:2345:respawn:/sbin/mingetty tty5
+		6:2345:respawn:/sbin/mingetty tty6
+
+		x:5:respawn:/etc/X11/prefdm -nodaemon <==X window 则是这行决定的！
+
+			系统需要进入的 runlevel
+			捕获组合键的定义
+			定义电源 fail/restore 脚本
+			启动 getty 和虚拟控制台
+
+		得到配置信息后，sysvinit 顺序地执行以下这些步骤，从而将系统初始化为预订的 runlevel X。
+
+			/etc/rc.d/rc.sysinit
+			/etc/rc.d/rc 和/etc/rc.d/rcX.d/ (X 代表运行级别 0-6)
+			/etc/rc.d/rc.local
+			X Display Manager（如果需要的话）
+
+	每个栏位的意义与说明如下：
+
+	[配置项目]:[run level]:[init 的动作行为]:[命令项目]
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+    						init 的处理流程
+
+	事实上 /etc/inittab 的配置也有点类似 shell script 啦，因为该文件内容的配置也是一行一行的从上往下
+	处理的， 因此我们可以知道 CentOS 的 init 依据 inittab 配置的处理流程会是：
+
+   1. 先取得 runlevel 亦即默认运行等级的相关等级 (以鸟哥的测试机为例，为 5 号)；
+   2. 使用 /etc/rc.d/rc.sysinit 进行系统初始化
+   3. 由於 runlevel 是 5 ，因此只进行『l5:5:wait:/etc/rc.d/rc 5』，其他行则略过
+   4. 配置好 [ctrl]+[alt]+[del] 这组的组合键功能
+   5. 配置不断电系统的 pf, pr 两种机制；
+   6. 启动 mingetty 的六个终端机 (tty1 ~ tty6)
+   7. 最终以 /etc/X11/perfdm -nodaemon 启动图形介面啦
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/ 
+首先，运行 rc.sysinit 以便执行一些重要的系统初始化任务。在 RedHat 公司的 RHEL5 中(RHEL6 已经使用 upstart 了)，
+rc.sysinit 主要完成以下这些工作。
+
+    激活 udev 和 selinux
+    设置定义在/etc/sysctl.conf 中的内核参数
+    设置系统时钟
+    加载 keymaps
+    使能交换分区
+    设置主机名(hostname)
+    根分区检查和 remount
+    激活 RAID 和 LVM 设备
+    开启磁盘配额
+    检查并挂载所有文件系统
+    清除过期的 locks 和 PID 文件
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/ 
+				init 处理系统初始化流程 (/etc/rc.d/rc.sysinit)  来自鸟哥的linux私房菜
+
+如果你使用 vim 去查阅过 /etc/rc.d/rc.sysinit 的话，那么可以发现他主要的工作大抵有这几项：
+
+    取得网络环境与主机类型：
+    	读取网络配置档 /etc/sysconfig/network ，取得主机名称与默认通讯闸 (gateway) 等网络环境。
+    测试与挂载内存装置 /proc 及 U盘 装置 /sys：
+    	除挂载内存装置 /proc 之外，还会主动侦测系统上是否具有 usb 的装置， 若有则会主动加载 usb 的驱动程序，并且尝试挂载 usb 的文件系统。
+    决定是否启动 SELinux ：
+    	我们在第十七章谈到的 SELinux 在此时进行一些检测， 并且检测是否需要帮所有的文件重新编写标准的 SELinux 类型 (auto relabel)。
+    启动系统的乱数产生器：
+    	乱数产生器可以帮助系统进行一些口令加密演算的功能，在此需要启动两次乱数产生器。
+    配置终端机 (console) 字形：
+    配置显示於启动过程中的欢迎画面 (text banner)；
+    配置系统时间 (clock) 与时区配置：需读入 /etc/sysconfig/clock 配置值
+    周边设备的侦测与 Plug and Play (PnP) 参数的测试：
+    	根据核心在启动时侦测的结果 (/proc/sys/kernel/modprobe ) 开始进行 ide / scsi / 网络 / 音效 等周边设备的侦测，以及利用以加载的
+		核心模块进行 PnP 装置的参数测试。
+    使用者自订模块的加载
+   	 	使用者可以在 /etc/sysconfig/modules/*.modules 加入自订的模块，则此时会被加载到系统当中
+    加载核心的相关配置：
+    	系统会主动去读取 /etc/sysctl.conf 这个文件的配置值，使核心功能成为我们想要的样子。
+    配置主机名称与初始化电源管理模块 (ACPI)
+    初始化软件磁盘阵列：主要是透过 /etc/mdadm.conf 来配置好的。
+    初始化 LVM 的文件系统功能
+    以 fsck 检验磁碟文件系统：会进行 filesystem check
+    进行磁碟配额 quota 的转换 (非必要)：
+    重新以可读写模式挂载系统磁碟：
+    启动 quota 功能：所以我们不需要自订 quotaon 的动作
+    启动系统虚拟乱数产生器 (pseudo-random)：
+    清除启动过程当中的缓存文件：
+    将启动相关资讯加载 /var/log/dmesg 文件中。
+
+/*@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@*/ 
+完成了以上这些工作之后，sysvinit 开始运行/etc/rc.d/rc 脚本。根据不同的 runlevel，rc 脚本将打开对应该 runlevel
+的 rcX.d 目录(X 就是 runlevel)，找到并运行存放在该目录下的所有启动脚本。每个 runlevel X 都有一个这样的目录，
+目录名为/etc/rc.d/rcX.d。
+
+在这些目录下存放着很多不同的脚本。文件名以 S 开头的脚本就是启动时应该运行的脚本，S 后面跟的数字定义了这些脚本的
+执行顺序。在/etc/rc.d/rcX.d 目录下的脚本其实都是一些软链接文件，真实的脚本文件存放在/etc/init.d 目录下。
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+			清单 1.rc5.d 目录下的脚本
+
+			[root@www ~]# ll /etc/rc5.d/
+			lrwxrwxrwx 1 root root 16 Sep  4  2008 K02dhcdbd -> ../init.d/dhcdbd
+			....(中间省略)....
+			lrwxrwxrwx 1 root root 14 Sep  4  2008 K91capi -> ../init.d/capi
+			lrwxrwxrwx 1 root root 23 Sep  4  2008 S00microcode_ctl -> ../init.d/microcode_ctl
+			lrwxrwxrwx 1 root root 22 Sep  4  2008 S02lvm2-monitor -> ../init.d/lvm2-monitor
+			....(中间省略)....
+			lrwxrwxrwx 1 root root 17 Sep  4  2008 S10network -> ../init.d/network
+			....(中间省略)....
+			lrwxrwxrwx 1 root root 11 Sep  4  2008 S99local -> ../rc.local
+			lrwxrwxrwx 1 root root 16 Sep  4  2008 S99smartd -> ../init.d/smartd
+			....(底下省略)....
+>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+当所有的初始化脚本执行完毕。Sysvinit 运行/etc/rc.d/rc.local 脚本。
+rc.local 是 Linux 留给用户进行个性化设置的地方。您可以把自己私人想设置和启动的东西放到这里，一台 Linux
+ Server 的用户一般不止一个，所以才有这样的考虑。
+
+
+3.Sysvinit 和系统关闭
+Sysvinit 不仅需要负责初始化系统，还需要负责关闭系统。
+在系统关闭时，为了保证数据的一致性，需要小心地按顺序进行结束和清理工作。
+这种顺序的控制这也是依靠/etc/rc.d/rcX.d/目录下所有脚本的命名规则来控制的，在该目录下所有
+以 K 开头的脚本都将在关闭系统时调用，字母 K 之后的数字定义了它们的执行顺序。
+
+
+4.Sysvinit 的管理和控制功能
+此外，在系统启动之后，管理员还需要对已经启动的进程进行管理和控制。原始的 sysvinit 软件
+包包含了一系列的控制启动，运行和关闭所有其他程序的工具。
+
+halt	
+	停止系统。
+
+init
+	这个就是 sysvinit 本身的 init 进程实体，以 pid1 身份运行，是所有用户进程的父进程。
+	最主要的作用是在启动过程中使用/etc/inittab 文件创建进程。
+
+killall5
+	就是 SystemV 的 killall 命令。向除自己的会话(session)进程之外的其它进程发出信号，所以不能杀死当前使用的 shell。
+
+last
+	回溯/var/log/wtmp 文件(或者-f 选项指定的文件)，显示自从这个文件建立以来，所有用户的登录情况。
+
+lastb
+	作用和 last 差不多，默认情况下使用/var/log/btmp 文件，显示所有失败登录企图。
+
+mesg
+	控制其它用户对用户终端的访问。
+
+pidof
+	找出程序的进程识别号(pid)，输出到标准输出设备。
+
+poweroff
+	等于 shutdown -h –p，或者 telinit 0。关闭系统并切断电源。
+
+reboot
+	等于 shutdown –r 或者 telinit 6。重启系统。
+
+runlevel
+	读取系统的登录记录文件(一般是/var/run/utmp)把以前和当前的系统运行级输出到标准输出设备。
+
+shutdown
+	以一种安全的方式终止系统，所有正在登录的用户都会收到系统将要终止通知，并且不准新的登录。
+
+sulogin
+	当系统进入单用户模式时，被 init 调用。当接收到启动加载程序传递的-b 选项时，init 也会调用 sulogin。
+
+telinit
+	实际是 init 的一个连接，用来向 init 传送单字符参数和信号。
+
+utmpdump
+	以一种用户友好的格式向标准输出设备显示/var/run/utmp 文件的内容。
+
+wall
+	向所有有信息权限的登录用户发送消息。
+
+/*#####################################################################################################*/ 
+总结：
+1.第一支程序，那就是 /sbin/init 	 init 的配置档，亦即是 /etc/inittab
+过程：
+/etc.inittab-->/etc/rc.d/rc.sysinit（其中会去读取/etc/sysconfig/* /etc/sysctl.conf 
+/var/log/dmesg 	/etc/sysconfig/clock 	/proc/sys/kernel/modprobe等等）-->
+-->/etc/rc.d/rc-->/etc/rc.d/rcX.d链接到-->/etc/init.d中去-->/etc/rc.d/rc.local(个性化设置的地方)
+2.管理和控制功能
+init runlevel	启动过程中使用/etc/inittab 文件创建进程
+last	回溯/var/log/wtmp 文件(或者-f 选项指定的文件)，显示自从这个文件建立以来，所有用户的登录情况。
+mesg	控制其它用户对用户终端的访问。
+pidof	找出程序的进程识别号(pid)，输出到标准输出设备。
+utmpdump	以一种用户友好的格式向标准输出设备显示/var/run/utmp 文件的内容。
+wall	向所有有信息权限的登录用户发送消息。
